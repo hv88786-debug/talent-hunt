@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Talent Hunt</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#000;font-family:'Inter',-apple-system,sans-serif;}
+
+@keyframes th-pulse-dot{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,90,31,0.5)}50%{opacity:.6;box-shadow:0 0 0 4px rgba(255,90,31,0)}}
+@keyframes th-ring-pulse{0%,100%{filter:drop-shadow(0 0 10px rgba(255,90,31,.55)) drop-shadow(0 0 22px rgba(255,90,31,.35))}50%{filter:drop-shadow(0 0 16px rgba(255,90,31,.75)) drop-shadow(0 0 32px rgba(255,90,31,.5))}}
+@keyframes th-fade-up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes th-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes as-pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+@keyframes as-corner-breathe{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes as-scanline{0%{top:0;opacity:0}5%{opacity:1}95%{opacity:1}100%{top:100%;opacity:0}}
+@keyframes as-scan-fast{0%{top:0;opacity:.6}100%{top:100%;opacity:.6}}
+@keyframes as-live-blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes as-countdown-pop{0%{transform:scale(2.5);opacity:0}60%{transform:scale(.92);opacity:1}100%{transform:scale(1);opacity:1}}
+
+.as-scanline-idle{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(10,132,255,.27),rgba(10,132,255,.67),rgba(10,132,255,.27),transparent);z-index:8;animation:as-scanline 3.5s linear infinite;}
+.as-scanline-fast{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,255,136,.2),rgba(0,255,136,.53),rgba(0,255,136,.2),transparent);z-index:8;animation:as-scan-fast 1.2s linear infinite;}
+.as-cta-btn{transition:transform .12s,opacity .12s;}
+.as-cta-btn:active:not(:disabled){transform:scale(.97);}
+.as-cta-btn:disabled{opacity:.4;cursor:not-allowed;}
+.screen{animation:th-fade-up .4s cubic-bezier(.16,1,.3,1);}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#2A2B2E;border-radius:2px;}
+.filter-scroll{display:flex;gap:8px;padding:0 20px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.filter-scroll::-webkit-scrollbar{display:none;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// ── THEME ──
+const C={bg:"#0A0A0B",bg2:"#111113",graphite:"#1B1C1F",graphiteLight:"#232427",line:"#2A2B2E",orange:"#FF5A1F",orangeDim:"#7A2E12",blue:"#2D9CFF",blueDim:"#163A5C",text:"#F3F2EF",textDim:"#8E8E93",textFaint:"#5B5C60"};
+const FD="'Oswald','Arial Narrow',sans-serif";
+const FB="'Inter',-apple-system,sans-serif";
+
+// ── DATA ──
+const DEMO_ATHLETE={name:"Arjun Singh",sport:"Cricket",level:"Elite",overall:89,percentile:92,region:"Delhi NCR",metrics:{speed:92,strength:83,agility:94,endurance:87}};
+const DEMO_RESULT={sport:"Cricket",testName:"40M Sprint Test",overall:89,percentile:92,level:"Elite",districtRank:2,radar:[{label:"Speed",value:92},{label:"Strength",value:83},{label:"Agility",value:94},{label:"Endurance",value:87},{label:"Balance",value:78}]};
+const DEMO_SPORT={id:"cricket",name:"Cricket",test:"Sprint Assessment"};
+const SPORTS=[
+  {id:"cricket",name:"Cricket",grad:["#1a2e1f","#0c1410"],test:"Sprint Assessment"},
+  {id:"football",name:"Football",grad:["#1a2230","#0c1018"],test:"Movement Analysis"},
+  {id:"athletics",name:"Athletics",grad:["#2e1a1a","#140c0c"],test:"Power Analysis"},
+  {id:"basketball",name:"Basketball",grad:["#2a2014","#130f0a"],test:"Reaction Test"},
+  {id:"volleyball",name:"Volleyball",grad:["#1a2630","#0c1216"],test:"Power Analysis"},
+];
+const LEADERBOARD_SPORTS=["All","Cricket","Football","Athletics","Basketball","Volleyball"];
+const AS_MSGS=["ANALYZING MOVEMENT...","CALCULATING SPEED...","EVALUATING AGILITY...","MEASURING STRIDE...","PROCESSING BIOMECHANICS...","AI SCORING..."];
+
+// ── STATE ──
+const state={
+  screen:"splash",
+  activeTab:"home",
+  selectedSport:null,
+  demoMode:false,
+  saveError:null,
+  splashPhase:0,
+  user:{name:"Athlete",photoURL:null,sport:"Cricket",level:"Intermediate",overall:87,percentile:12,region:"Ajmer, RJ",metrics:{speed:88,strength:79,agility:91,endurance:84}},
+  assPhase:"ready",countVal:3,elapsed:0,analyzePct:0,analyzeMsg:AS_MSGS[0],hr:null,spd:null,
+  countRef:null,recRef:null,analyzeRef:null,
+  analysisProgress:0,analysisStage:0,analysisInterval:null,
+  resultsRevealed:false,resultsBarsIn:false,resultsActiveTab:"card",resultsScore:0,
+  shareState:"idle",downloadState:"idle",shareError:null,
+  radarFrac:0,
+  homeBarsIn:false,
+  glowRingAnimated:0,glowRingSettled:false,
+  lbFilter:"All",lbLeaders:[],lbLoading:false,lbError:null,
+  profStats:null,profHistory:[],profLoading:false,profError:null,
+};
+
+// ── SVG ICONS ──
+function icon(name,size=20,color="currentColor",sw=2){
+  const paths={
+    ChevronLeft:`<polyline points="15 18 9 12 15 6"/>`,
+    ChevronRight:`<polyline points="9 18 15 12 9 6"/>`,
+    Home:`<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>`,
+    LayoutGrid:`<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>`,
+    Camera:`<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>`,
+    Trophy:`<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/>`,
+    User:`<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>`,
+    Zap:`<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>`,
+    Activity:`<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>`,
+    Wind:`<path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>`,
+    Heart:`<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>`,
+    Play:`<polygon points="5 3 19 12 5 21 5 3"/>`,
+    MapPin:`<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>`,
+    LogOut:`<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>`,
+    Award:`<circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/>`,
+    Brain:`<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/>`,
+    Share2:`<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>`,
+    Download:`<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>`,
+    TrendingUp:`<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>`,
+    TrendingDown:`<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>`,
+    Minus:`<line x1="5" y1="12" x2="19" y2="12"/>`,
+    AlertCircle:`<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>`,
+    Check:`<polyline points="20 6 9 12 4 10"/>`,
+  };
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;">${paths[name]||''}</svg>`;
+}
+
+function googleGlyph(size=18){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.1 8 3l5.7-5.7C34.6 6 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 19 13 24 13c3.1 0 5.9 1.1 8 3l5.7-5.7C34.6 6 29.6 4 24 4 16.3 4 9.6 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-1.8 14-5l-6.5-5.4c-2 1.4-4.6 2.4-7.5 2.4-5.2 0-9.6-3.3-11.3-8l-6.6 5.1C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.5 5.4C41.5 35.8 44 30.4 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>`;
+}
+
+// ── HELPERS ──
+function getActiveUser(){return state.demoMode?DEMO_ATHLETE:state.user;}
+function getActiveResult(){
+  if(state.demoMode)return DEMO_RESULT;
+  return{sport:state.selectedSport?.name||"Cricket",testName:"40M Sprint Test",overall:87,percentile:88,level:"Advanced",districtRank:4,radar:[
+    {label:"Speed",value:88},{label:"Strength",value:79},{label:"Agility",value:91},{label:"Endurance",value:84},{label:"Balance",value:73}
+  ]};
+}
+
+// ── RENDER ──
+function render(){
+  document.getElementById('root').innerHTML=buildApp();
+  attachEvents();
+}
+
+function buildApp(){
+  const{screen}=state;
+  if(screen==='splash')return buildSplash();
+  if(screen==='login')return buildLogin();
+
+  const showNav=['home','sport','leaderboard','profile'].includes(screen);
+  const showDemoBanner=state.demoMode&&screen!=='home';
+  const content=buildScreenContent();
+
+  return `
+  <div style="width:100%;height:100vh;display:flex;align-items:center;justify-content:center;background:#000;font-family:${FB};">
+    <div style="width:390px;height:844px;max-height:100vh;background:${C.bg};position:relative;overflow:hidden;box-shadow:0 0 60px rgba(0,0,0,0.8);display:flex;flex-direction:column;">
+      ${buildStatusBar()}
+      ${showDemoBanner?buildDemoBanner():''}
+      <div id="screen-content" class="screen" style="flex:1;position:relative;overflow:hidden;">${content}</div>
+      ${showNav?buildBottomNav():''}
+    </div>
+  </div>`;
+}
+
+function buildSplash(){
+  const p=state.splashPhase;
+  return `
+  <div style="width:100%;height:100vh;display:flex;align-items:center;justify-content:center;background:#000;">
+    <div style="width:390px;height:844px;max-height:100vh;background:${C.bg};position:relative;overflow:hidden;box-shadow:0 0 60px rgba(0,0,0,0.8);display:flex;flex-direction:column;align-items:center;justify-content:center;">
+      <div style="position:absolute;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(255,90,31,0.18) 0%,rgba(255,90,31,0) 70%);opacity:${p>=1?1:0};transition:opacity 1s ease;"></div>
+      <div style="width:86px;height:86px;border-radius:22px;border:2.5px solid ${C.orange};display:flex;align-items:center;justify-content:center;transform:${p>=1?'scale(1)':'scale(0.7)'};opacity:${p>=1?1:0};transition:all 0.7s cubic-bezier(0.16,1,0.3,1);box-shadow:${p>=1?'0 0 30px rgba(255,90,31,0.45)':'none'};animation:${p>=1?'th-ring-pulse 2.4s ease-in-out infinite':'none'};">
+        <span style="font-family:${FD};font-size:38px;font-weight:700;color:${C.orange};">TH</span>
+      </div>
+      <h1 style="font-family:${FD};font-size:30px;font-weight:600;color:${C.text};letter-spacing:4px;margin-top:28px;margin-bottom:8px;opacity:${p>=2?1:0};transform:${p>=2?'translateY(0)':'translateY(8px)'};transition:all 0.6s ease;">TALENT HUNT</h1>
+      <p style="font-family:${FB};font-size:13px;color:${C.textDim};letter-spacing:0.5px;margin:0;opacity:${p>=2?1:0};transition:opacity 0.6s ease 0.2s;">Discover the Athlete Within.</p>
+      <p style="font-family:${FB};font-size:11px;font-weight:700;color:${C.orange};letter-spacing:1.6px;margin-top:10px;opacity:${p>=2?1:0};transition:opacity 0.6s ease 0.35s;">ASSESS · IMPROVE · COMPETE</p>
+    </div>
+  </div>`;
+}
+
+function buildLogin(){
+  return `
+  <div style="width:100%;height:100vh;display:flex;align-items:center;justify-content:center;background:#000;">
+    <div style="width:390px;height:844px;max-height:100vh;background:${C.bg};position:relative;overflow:hidden;box-shadow:0 0 60px rgba(0,0,0,0.8);display:flex;flex-direction:column;">
+      ${buildStatusBar()}
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;padding:0 32px;">
+        <div style="position:absolute;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(255,90,31,0.18) 0%,rgba(255,90,31,0) 70%);"></div>
+        <div style="width:86px;height:86px;border-radius:22px;border:2.5px solid ${C.orange};display:flex;align-items:center;justify-content:center;box-shadow:0 0 30px rgba(255,90,31,0.45);margin-bottom:28px;">
+          <span style="font-family:${FD};font-size:38px;font-weight:700;color:${C.orange};">TH</span>
+        </div>
+        <h1 style="font-family:${FD};font-size:24px;font-weight:600;color:${C.text};letter-spacing:2px;margin:0;text-align:center;">SIGN IN TO CONTINUE</h1>
+        <p style="font-family:${FB};font-size:13px;color:${C.textDim};margin:8px 0 36px;text-align:center;line-height:1.5;">Track your assessments, rankings, and progress across devices.</p>
+        <button id="btn-signin" style="width:100%;max-width:320px;padding:15px 22px;border-radius:16px;background:${C.text};border:none;font-family:${FB};font-size:14px;font-weight:700;color:#0A0A0B;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,0.35);">
+          ${googleGlyph(18)} Continue with Google
+        </button>
+        <p style="font-family:${FB};font-size:12px;color:${C.textDim};margin-top:18px;text-align:center;">Firebase not configured — <span id="btn-demo-login" style="color:${C.orange};cursor:pointer;font-weight:700;">Try Demo Mode</span></p>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildStatusBar(){
+  return `<div style="height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:13px;font-weight:600;color:${C.text};font-family:${FB};flex-shrink:0;">
+    <span>9:41</span>
+    <div style="display:flex;gap:5px;align-items:center;">
+      <span style="font-size:11px;">5G</span>
+      <div style="display:flex;gap:2px;align-items:flex-end;">
+        <div style="width:3px;height:4px;background:${C.text};border-radius:1px;"></div>
+        <div style="width:3px;height:6px;background:${C.text};border-radius:1px;"></div>
+        <div style="width:3px;height:8px;background:${C.text};border-radius:1px;"></div>
+        <div style="width:3px;height:10px;background:${C.text};border-radius:1px;"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildDemoBanner(){
+  return `<div style="position:absolute;top:48px;left:0;right:0;display:flex;align-items:center;justify-content:center;z-index:100;pointer-events:none;">
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 14px 5px 10px;border-radius:20px;background:rgba(10,10,11,0.85);border:1px solid rgba(255,90,31,0.45);backdrop-filter:blur(12px);box-shadow:0 4px 24px rgba(255,90,31,0.2);pointer-events:auto;">
+      <div style="width:6px;height:6px;border-radius:50%;background:${C.orange};animation:th-pulse-dot 1.4s ease-in-out infinite;"></div>
+      <span style="font-family:${FB};font-size:11px;font-weight:700;color:${C.orange};letter-spacing:0.4px;">DEMO MODE · Arjun Singh</span>
+      <button id="btn-exit-demo" style="margin-left:4px;background:rgba(255,90,31,0.12);border:1px solid rgba(255,90,31,0.3);border-radius:10px;padding:2px 8px;font-family:${FB};font-size:10px;font-weight:700;color:${C.orange};cursor:pointer;letter-spacing:0.3px;">EXIT</button>
+    </div>
+  </div>`;
+}
+
+function buildBottomNav(){
+  const{activeTab}=state;
+  const items=[
+    {id:'home',iconName:'Home',label:'Home'},
+    {id:'sport',iconName:'LayoutGrid',label:'Sports'},
+    {id:'assess',iconName:'Camera',label:'Assess'},
+    {id:'leaderboard',iconName:'Trophy',label:'Ranks'},
+    {id:'profile',iconName:'User',label:'Profile'},
+  ];
+  const btns=items.map(it=>{
+    const isActive=activeTab===it.id;
+    const isCenter=it.id==='assess';
+    return `<button data-tab="${it.id}" style="background:${isCenter?C.orange:'none'};border:${isCenter?`3px solid ${C.bg}`:'none'};display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:${isCenter?'13px':'6px'};border-radius:${isCenter?'20px':'8px'};margin-top:${isCenter?'-26px':'0'};box-shadow:${isCenter?'0 8px 24px rgba(255,90,31,0.55), 0 0 0 1px rgba(255,90,31,0.25)':'none'};transition:all 0.2s ease;">
+      ${icon(it.iconName,isCenter?24:21,isCenter?'#0A0A0B':isActive?C.orange:C.textFaint,isActive||isCenter?2.4:1.8)}
+      ${!isCenter?`<span style="font-size:10px;font-family:${FB};font-weight:600;color:${isActive?C.orange:C.textFaint};letter-spacing:0.3px;">${it.label}</span>`:''}
+    </button>`;
+  }).join('');
+  return `<div style="position:absolute;bottom:0;left:0;right:0;height:78px;background:rgba(17,17,19,0.92);backdrop-filter:blur(14px);border-top:1px solid ${C.line};display:flex;align-items:center;justify-content:space-around;padding-bottom:14px;z-index:50;">${btns}</div>`;
+}
+
+function buildTopBar(title,backId){
+  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 20px 18px;flex-shrink:0;">
+    <button id="${backId}" style="width:38px;height:38px;border-radius:50%;background:${C.graphite};border:1px solid ${C.line};display:flex;align-items:center;justify-content:center;cursor:pointer;">${icon('ChevronLeft',19,C.text)}</button>
+    <span style="font-family:${FD};font-size:17px;font-weight:700;color:${C.text};letter-spacing:1px;text-transform:uppercase;">${title}</span>
+    <div style="width:38px;"></div>
+  </div>`;
+}
+
+function buildGlowRing(size,score,label,stroke=14,sub=''){
+  const r=(size-stroke)/2;
+  const circ=2*Math.PI*r;
+  const animated=state.glowRingAnimated;
+  const offset=circ-(animated/100)*circ;
+  return `<div style="position:relative;width:${size}px;height:${size}px;">
+    <svg width="${size}" height="${size}" style="transform:rotate(-90deg);">
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${C.graphite}" stroke-width="${stroke}"/>
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${C.orange}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" style="transition:stroke-dashoffset 1.4s cubic-bezier(0.16,1,0.3,1);filter:drop-shadow(0 0 10px ${C.orange}) drop-shadow(0 0 22px rgba(255,90,31,0.55));${state.glowRingSettled?'animation:th-ring-pulse 2.8s ease-in-out infinite;':''}"/>
+    </svg>
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+      <span style="font-family:${FD};font-size:${size*0.34}px;font-weight:600;color:${C.text};line-height:1;letter-spacing:-1px;">${Math.round(animated)}</span>
+      <span style="font-family:${FB};font-size:11px;font-weight:700;color:${C.textDim};letter-spacing:2px;margin-top:4px;">${label}</span>
+      ${sub?`<span style="font-family:${FB};font-size:10px;color:${C.orange};margin-top:2px;font-weight:600;">${sub}</span>`:''}
+    </div>
+  </div>`;
+}
+
+function buildSmallGlowRing(size,score,label,stroke=10){
+  const r=(size-stroke)/2,circ=2*Math.PI*r;
+  const offset=circ-(score/100)*circ;
+  return`<div style="position:relative;width:${size}px;height:${size}px;">
+    <svg width="${size}" height="${size}" style="transform:rotate(-90deg);">
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${C.graphite}" stroke-width="${stroke}"/>
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${C.orange}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" style="filter:drop-shadow(0 0 10px ${C.orange});"/>
+    </svg>
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+      <span style="font-family:${FD};font-size:${size*0.34}px;font-weight:600;color:${C.text};line-height:1;">${score}</span>
+      <span style="font-family:${FB};font-size:11px;font-weight:700;color:${C.textDim};letter-spacing:2px;margin-top:4px;">${label}</span>
+    </div>
+  </div>`;
+}
+
+function buildScreenContent(){
+  const s=state.screen;
+  if(s==='home')return buildHome();
+  if(s==='sport')return buildSport();
+  if(s==='assessment'||s==='demo-assessment')return buildAssessment();
+  if(s==='analysis'||s==='demo-analysis')return buildAnalysis();
+  if(s==='results'||s==='demo-results')return buildResults();
+  if(s==='leaderboard')return buildLeaderboard();
+  if(s==='profile')return buildProfile();
+  return '';
+}
+
+// ── HOME ──
+function buildHome(){
+  const u=getActiveUser();
+  const metrics=[
+    {iconName:'Zap',label:'Speed',val:u.metrics.speed},
+    {iconName:'Activity',label:'Strength',val:u.metrics.strength},
+    {iconName:'Wind',label:'Agility',val:u.metrics.agility},
+    {iconName:'Heart',label:'Endurance',val:u.metrics.endurance},
+  ];
+  const bars=metrics.map((m,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;">
+      ${icon(m.iconName,14,C.textDim,2)}
+      <span style="width:64px;font-family:${FB};font-size:11px;color:${C.textDim};font-weight:700;letter-spacing:0.3px;flex-shrink:0;">${m.label.toUpperCase()}</span>
+      <div style="flex:1;height:5px;border-radius:3px;background:${C.graphite};overflow:hidden;">
+        <div style="height:100%;width:${state.homeBarsIn?m.val+'%':'0%'};background:linear-gradient(90deg,${C.orangeDim},${C.orange});border-radius:3px;transition:width 1s cubic-bezier(0.16,1,0.3,1) ${i*0.08}s;"></div>
+      </div>
+      <span style="width:24px;text-align:right;font-family:${FD};font-size:14px;color:${C.text};font-weight:600;flex-shrink:0;">${m.val}</span>
+    </div>`).join('');
+
+  return `<div style="height:100%;display:flex;flex-direction:column;background:${C.bg};">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 22px 0;">
+      <div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="width:7px;height:7px;border-radius:50%;background:${C.orange};animation:th-pulse-dot 1.8s ease-in-out infinite;display:inline-block;"></span>
+          <span style="font-family:${FB};font-size:11px;color:${C.orange};font-weight:700;letter-spacing:0.6px;">AI PERFORMANCE ENGINE ACTIVE</span>
+        </div>
+        <h2 style="font-family:${FD};font-size:23px;color:${C.text};margin:6px 0 0;font-weight:700;letter-spacing:0.5px;">${u.name.split(' ')[0]}</h2>
+      </div>
+      <button id="btn-home-profile" style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,${C.graphiteLight},${C.graphite});border:1.5px solid ${C.line};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
+        ${icon('User',20,C.textDim)}
+      </button>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:18px 0;">
+      ${buildGlowRing(216,u.overall,'OVERALL SCORE')}
+      <span style="font-family:${FB};font-size:12px;color:${C.textDim};margin-top:20px;font-weight:500;">Top ${u.percentile}% in ${u.sport}</span>
+      <div style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:${C.graphite};border:1px solid ${C.line};margin-top:8px;">
+        ${icon('Zap',11,C.orange)}
+        <span style="font-family:${FB};font-size:10.5px;color:${C.text};font-weight:700;letter-spacing:0.3px;">NEXT ASSESSMENT READY</span>
+      </div>
+    </div>
+    <div style="padding:0 22px 14px;display:flex;flex-direction:column;gap:11px;">${bars}</div>
+    <button id="btn-start-assessment" style="margin:0 22px 18px;padding:18px;border-radius:18px;background:${C.orange};border:none;font-family:${FD};font-size:16px;font-weight:600;color:#0A0A0B;letter-spacing:1px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;box-shadow:0 10px 30px rgba(255,90,31,0.45),0 0 0 1px rgba(255,90,31,0.3);animation:th-ring-pulse 2.8s ease-in-out infinite;">
+      START AI ASSESSMENT ${icon('ChevronRight',19,'#0A0A0B')}
+    </button>
+    <button id="btn-try-demo" style="margin:-10px 22px 20px;padding:13px 18px;border-radius:14px;background:transparent;border:1px solid ${C.line};font-family:${FB};font-size:13px;font-weight:700;color:${C.textDim};letter-spacing:0.4px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all 0.2s ease;">
+      ${icon('Play',13,C.textDim)} Try Demo Athlete
+    </button>
+  </div>`;
+}
+
+// ── SPORT SELECTION ──
+function buildSport(){
+  const cards=SPORTS.map(s=>`
+    <button data-sport="${s.id}" style="position:relative;height:128px;border-radius:18px;border:none;overflow:hidden;cursor:pointer;background:linear-gradient(135deg,${s.grad[0]},${s.grad[1]});text-align:left;transition:transform 0.15s ease;width:100%;">
+      <div style="position:absolute;inset:0;background:radial-gradient(circle at 85% 30%,rgba(255,90,31,0.18),transparent 60%);"></div>
+      <div style="position:absolute;bottom:0;left:0;right:0;height:70%;background:linear-gradient(to top,rgba(0,0,0,0.55),transparent);"></div>
+      <div style="position:absolute;left:18px;bottom:14px;">
+        <h3 style="font-family:${FD};font-size:21px;color:${C.text};margin:0;font-weight:600;letter-spacing:0.5px;">${s.name}</h3>
+        <p style="font-family:${FB};font-size:11px;color:${C.orange};margin:3px 0 0;font-weight:700;letter-spacing:0.3px;">${s.test.toUpperCase()}</p>
+      </div>
+      <div style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;">
+        ${icon('ChevronRight',16,C.text)}
+      </div>
+    </button>`).join('');
+  return `<div style="height:100%;display:flex;flex-direction:column;background:${C.bg};">
+    ${buildTopBar('Choose Your Sport','btn-back-sport')}
+    <div style="padding:0 20px;margin-bottom:10px;">
+      <p style="font-family:${FD};font-size:15px;color:${C.text};margin:0;letter-spacing:1px;font-weight:600;">TRAIN. ASSESS. IMPROVE. COMPETE.</p>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:4px 20px 24px;display:flex;flex-direction:column;gap:12px;">${cards}</div>
+  </div>`;
+}
+
+// ── ASSESSMENT ──
+function buildAssessment(){
+  const{assPhase,countVal,elapsed,analyzePct,analyzeMsg,hr,spd}=state;
+  const isRecording=assPhase==='recording';
+  const isAnalyzing=assPhase==='analyzing';
+  const isDone=assPhase==='done';
+  const isLive=isRecording;
+  const TOTAL_REC=state.demoMode?6:15;
+  const sportName=(state.demoMode?DEMO_SPORT:state.selectedSport||{name:'Football'}).name.toUpperCase();
+
+  const stateChipStyle=isRecording||isDone?'color:#00FF88;border:1px solid rgba(0,255,136,.27);background:rgba(0,255,136,.07);':
+    isAnalyzing?'color:#0A84FF;border:1px solid rgba(10,132,255,.27);background:rgba(10,132,255,.07);':'color:#3A4455;border:1px solid #1A2030;';
+  const stateChipLabel=isDone?'COMPLETE':isRecording?'REC':isAnalyzing?'ANALYZING':'READY';
+  const statusText=isDone?'ASSESSMENT COMPLETE':isRecording?'RECORDING — STAY IN FRAME':isAnalyzing?'AI PROCESSING YOUR DATA':'POSITION YOURSELF IN FRAME';
+  const ctaBtnStyle=assPhase==='ready'?`background:#0A84FF;color:#fff;border:none;`:assPhase==='recording'?`background:#1A2030;color:#fff;border:1px solid rgba(255,107,0,.4);`:`background:#00FF88;color:#080A0F;border:none;`;
+  const ctaLabel=isDone?'VIEW RESULTS':isRecording?'STOP RECORDING':isAnalyzing?'ANALYZING...':'START ASSESSMENT';
+  const ctaDisabled=isAnalyzing||assPhase==='countdown';
+
+  const recR=48,recCirc=2*Math.PI*recR;
+  const recOffset=recCirc*(1-Math.min(elapsed/TOTAL_REC,1));
+  const fmt=s=>{const m=Math.floor(s/60),sc=s%60;return`${m}:${sc<10?'0':''}${sc}`;};
+
+  const cornerDefs=[{top:'12px',left:'12px'},{top:'12px',right:'12px'},{bottom:'12px',left:'12px'},{bottom:'12px',right:'12px'}];
+  const cornerFlips=['none','scaleX(-1)','scaleY(-1)','scale(-1,-1)'];
+  const cornerColor=isLive?'#00FF88':'#0A84FF';
+  const cornersHtml=cornerDefs.map((pos,i)=>{
+    const posStr=Object.entries(pos).map(([k,v])=>`${k}:${v}`).join(';');
+    return `<div style="position:absolute;width:22px;height:22px;z-index:10;transform:${cornerFlips[i]};${posStr};${isLive?`animation:as-corner-breathe 1.5s ease-in-out infinite;animation-delay:${i*0.18}s;`:''}">
+      <div style="position:absolute;top:0;left:0;width:2px;height:22px;background:${cornerColor};"></div>
+      <div style="position:absolute;top:0;left:0;width:22px;height:2px;background:${cornerColor};"></div>
+    </div>`;
+  }).join('');
+
+  let viewportOverlay='';
+  if(assPhase==='countdown'){
+    const isGo=countVal===0;
+    viewportOverlay=`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:20;background:rgba(8,10,15,0.8);">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:${isGo?72:120}px;font-weight:700;line-height:1;color:${isGo?'#00FF88':'#fff'};animation:as-countdown-pop 0.85s cubic-bezier(0.34,1.56,0.64,1);">${isGo?'GO!':countVal}</div>
+      ${!isGo?`<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#0A84FF;letter-spacing:0.2em;margin-top:8px;">GET READY</div>`:''}
+    </div>`;
+  }else if(isRecording){
+    viewportOverlay=`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:15;">
+      <div style="position:relative;width:110px;height:110px;">
+        <svg width="110" height="110" viewBox="0 0 110 110" style="transform:rotate(-90deg);">
+          <circle cx="55" cy="55" r="${recR}" fill="none" stroke="#1A2030" stroke-width="4"/>
+          <circle cx="55" cy="55" r="${recR}" fill="none" stroke="#00FF88" stroke-width="4" stroke-linecap="round" stroke-dasharray="${recCirc}" stroke-dashoffset="${recOffset}" style="transition:stroke-dashoffset 0.9s linear;"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:#fff;line-height:1;">${fmt(elapsed)}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:rgba(0,255,136,.53);letter-spacing:0.15em;margin-top:2px;">ELAPSED</div>
+        </div>
+      </div>
+    </div>`;
+  }else if(isAnalyzing){
+    viewportOverlay=`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:15;background:rgba(8,10,15,0.67);">
+      <div class="as-scanline-fast"></div><div class="as-scanline-fast" style="animation-delay:-0.6s;"></div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:52px;font-weight:700;color:#0A84FF;line-height:1;z-index:16;position:relative;">${Math.round(analyzePct)}%</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(10,132,255,.53);letter-spacing:0.12em;margin-top:8px;min-height:16px;z-index:16;position:relative;">${analyzeMsg}</div>
+    </div>`;
+  }
+
+  const metricCards=[
+    {label:'HEART RATE',val:hr!==null?hr:'--',unit:' bpm',live:isRecording,analyzing:isAnalyzing},
+    {label:'ELAPSED',val:elapsed.toFixed(1),unit:'s',live:false,analyzing:false},
+    {label:'SPEED',val:spd!==null?spd:'--',unit:' m/s',live:isRecording,analyzing:isAnalyzing},
+  ].map(m=>`<div style="background:#0D1018;border:1px solid #1A2030;border-radius:4px;padding:10px 10px 8px;">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#3A4455;letter-spacing:0.12em;text-transform:uppercase;">${m.label}</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:${m.live?'#00FF88':m.analyzing?'#0A84FF':'#fff'};line-height:1.2;margin-top:3px;">
+      ${m.val}<span style="font-size:10px;font-weight:400;color:#3A4455;">${m.unit}</span>
+    </div>
+  </div>`).join('');
+
+  return `<div style="width:100%;height:100%;background:#080A0F;font-family:'Inter',sans-serif;color:#fff;display:flex;flex-direction:column;position:relative;overflow:hidden;">
+    <div style="padding:20px 20px 12px;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
+      <div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.18em;color:#0A84FF;text-transform:uppercase;display:flex;align-items:center;gap:6px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:#0A84FF;animation:as-pulse-dot 2s ease-in-out infinite;"></div>AI Assessment
+        </div>
+        <div style="font-size:24px;font-weight:900;letter-spacing:-0.03em;line-height:1.1;margin-top:4px;">Analyze Your<br/>Athletic Potential</div>
+        <button id="btn-back-assess" style="background:none;border:none;color:#4A5568;font-family:'JetBrains Mono',monospace;font-size:10px;cursor:pointer;padding:0;letter-spacing:0.1em;margin-top:3px;">← BACK</button>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-top:2px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.12em;padding:4px 10px;border:1px solid #1A2744;border-radius:3px;color:#64748B;">${sportName}</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.08em;padding:5px 12px;background:rgba(10,132,255,0.09);border:1px solid rgba(10,132,255,0.33);border-radius:3px;color:#0A84FF;">40M SPRINT</div>
+      </div>
+    </div>
+    <div style="flex-shrink:0;padding:0 16px;position:relative;">
+      <div style="width:100%;aspect-ratio:3/4;background:#050709;border:1px solid #1A2030;border-radius:4px;position:relative;overflow:hidden;">
+        <div style="position:absolute;inset:0;opacity:0.07;z-index:1;background-image:linear-gradient(#0A84FF 1px,transparent 1px),linear-gradient(90deg,#0A84FF 1px,transparent 1px);background-size:40px 40px;"></div>
+        ${cornersHtml}
+        ${!isAnalyzing?`<div class="${isRecording?'as-scanline-fast':'as-scanline-idle'}"></div>`:''}
+        <div style="position:absolute;top:16px;left:50%;transform:translateX(-50%);display:flex;gap:20px;z-index:9;">
+          ${['RES 4K','FPS 60','AI v3.1'].map(t=>`<div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(10,132,255,.53);letter-spacing:0.1em;text-transform:uppercase;">${t}</div>`).join('')}
+        </div>
+        <svg viewBox="0 0 120 300" fill="none" style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:55%;z-index:3;opacity:0.18;">
+          <circle cx="60" cy="20" r="16" fill="white"/>
+          <path d="M60 36 C40 50 30 90 35 130 L45 130 L50 90 L60 80 L70 90 L75 130 L85 130 C90 90 80 50 60 36Z" fill="white"/>
+          <path d="M45 130 L30 180 L38 182 L50 140 L45 130Z" fill="white"/>
+          <path d="M75 130 L90 180 L82 182 L70 140 L75 130Z" fill="white"/>
+          <path d="M30 180 L28 240 L36 240 L42 200 L38 182Z" fill="white"/>
+          <path d="M90 180 L92 240 L84 240 L78 200 L82 182Z" fill="white"/>
+          <path d="M28 240 L24 300 L34 300 L38 250 L36 240Z" fill="white"/>
+          <path d="M92 240 L96 300 L86 300 L82 250 L84 240Z" fill="white"/>
+          <path d="M35 60 L12 90 L18 95 L42 72Z" fill="white"/>
+          <path d="M85 60 L108 90 L102 95 L78 72Z" fill="white"/>
+        </svg>
+        <div style="position:absolute;bottom:16px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:flex-end;z-index:9;">
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            ${[['CAM','FRONT'],['DEPTH','4.2M']].map(([l,v])=>`<div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(10,132,255,.4);letter-spacing:0.08em;">${l} <span style="color:rgba(10,132,255,.8);">${v}</span></div>`).join('')}
+          </div>
+          <div style="display:flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:#00FF88;letter-spacing:0.1em;opacity:${isLive?1:0};transition:opacity .3s;">
+            <div style="width:7px;height:7px;border-radius:50%;background:#00FF88;${isLive?'animation:as-live-blink 1s ease-in-out infinite;':''}"></div>REC
+          </div>
+        </div>
+        ${viewportOverlay}
+      </div>
+    </div>
+    <div style="flex:1;padding:14px 20px 24px;display:flex;flex-direction:column;gap:14px;">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">${metricCards}</div>
+      ${isAnalyzing?`<div style="height:3px;background:#1A2030;border-radius:2px;overflow:hidden;"><div style="height:100%;width:${analyzePct}%;background:#0A84FF;border-radius:2px;transition:width .3s ease;"></div></div>`:''}
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#3A4455;letter-spacing:0.08em;">${statusText}</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.08em;padding:4px 10px;border-radius:2px;${stateChipStyle}">${stateChipLabel}</div>
+      </div>
+      <button id="btn-assess-cta" class="as-cta-btn" ${ctaDisabled?'disabled':''} style="width:100%;padding:0;border-radius:4px;font-family:'Inter',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.04em;cursor:${ctaDisabled?'not-allowed':'pointer'};height:58px;display:flex;align-items:center;justify-content:center;gap:10px;text-transform:uppercase;${ctaBtnStyle}">${ctaLabel}</button>
+    </div>
+  </div>`;
+}
+
+// ── ANALYSIS ──
+function buildAnalysis(){
+  const{analysisProgress,analysisStage}=state;
+  const stages=["Detecting key points","Tracking motion path","Calculating metrics","Finalizing score"];
+  const r=80,circ=2*Math.PI*r;
+  const offset=circ*(1-analysisProgress/100);
+  const metrics=[
+    {label:'Speed',iconName:'Zap',ready:analysisProgress>25},
+    {label:'Strength',iconName:'Activity',ready:analysisProgress>50},
+    {label:'Agility',iconName:'Wind',ready:analysisProgress>75},
+    {label:'Endurance',iconName:'Heart',ready:analysisProgress>95},
+  ];
+  return `<div style="height:100%;background:${C.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 28px;">
+    <div style="position:relative;width:180px;height:180px;margin-bottom:36px;">
+      <svg width="180" height="180" style="transform:rotate(-90deg);position:absolute;">
+        <circle cx="90" cy="90" r="${r}" fill="none" stroke="${C.graphite}" stroke-width="6"/>
+        <circle cx="90" cy="90" r="${r}" fill="none" stroke="${C.blue}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" style="transition:stroke-dashoffset 0.1s linear;filter:drop-shadow(0 0 10px ${C.blue});"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+        <span style="font-family:${FD};font-size:38px;color:${C.text};font-weight:600;">${Math.min(100,Math.round(analysisProgress))}%</span>
+      </div>
+      <div style="position:absolute;inset:-8px;border-radius:50%;border:1px dashed rgba(45,156,255,0.3);animation:th-spin 4s linear infinite;"></div>
+    </div>
+    <h2 style="font-family:${FD};font-size:19px;color:${C.text};font-weight:600;letter-spacing:0.5px;margin:0 0 6px;">Analyzing Movement</h2>
+    <p style="font-family:${FB};font-size:13px;color:${C.textDim};margin:0 0 30px;text-align:center;">${stages[analysisStage]}…</p>
+    <div style="display:flex;gap:12px;width:100%;">
+      ${metrics.map(m=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 4px;border-radius:14px;background:${m.ready?C.graphite:'transparent'};border:1px solid ${m.ready?C.line:'transparent'};transition:all 0.4s ease;">
+        ${icon(m.iconName,18,m.ready?C.orange:C.textFaint)}
+        <span style="font-family:${FB};font-size:10px;color:${m.ready?C.text:C.textFaint};font-weight:600;">${m.label}</span>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ── RESULTS ──
+function buildResults(){
+  const{resultsRevealed:rv,resultsBarsIn,resultsActiveTab,resultsScore}=state;
+  const result=getActiveResult();
+  const user=state.demoMode?{name:DEMO_ATHLETE.name,region:DEMO_ATHLETE.region}:{name:state.user.name,region:'Ajmer, RJ'};
+  const enrichedResult={...result,level:state.demoMode?DEMO_ATHLETE.level:'Advanced',districtRank:state.demoMode?(result.districtRank??2):4};
+
+  // ── Talent Card ──
+  const cardScoreR=27,cardScoreCirc=2*Math.PI*cardScoreR;
+  const cardScoreOffset=cardScoreCirc*(1-resultsScore/100);
+  const talentCard=`<div id="talent-card" style="width:100%;border-radius:20px;background:linear-gradient(135deg,#0F1117 0%,#161822 50%,#0A0C12 100%);border:1px solid rgba(255,90,31,0.3);overflow:hidden;position:relative;opacity:${rv?1:0};transform:${rv?'translateY(0) scale(1)':'translateY(24px) scale(0.95)'};transition:opacity 0.6s cubic-bezier(0.16,1,0.3,1),transform 0.6s cubic-bezier(0.16,1,0.3,1);box-shadow:${rv?'0 0 0 1px rgba(255,90,31,0.15),0 24px 48px rgba(0,0,0,0.6),0 0 80px rgba(255,90,31,0.07)':'none'};">
+    <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(255,90,31,0.12) 0%,transparent 65%);"></div>
+    <div style="height:3px;background:linear-gradient(90deg,transparent,${C.orange},rgba(255,180,60,0.9),${C.orange},transparent);"></div>
+    <div style="padding:16px 18px 12px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:40px;height:40px;border-radius:50%;flex-shrink:0;background:rgba(255,90,31,0.12);border:1.5px solid rgba(255,90,31,0.4);display:flex;align-items:center;justify-content:center;">
+          <span style="font-family:${FD};font-size:15px;font-weight:700;color:${C.orange};">${(user.name||'A').trim().charAt(0).toUpperCase()}</span>
+        </div>
+        <div>
+          <div style="font-family:${FB};font-size:9px;font-weight:800;color:${C.orange};letter-spacing:2px;margin-bottom:4px;">TALENT HUNT · ATHLETE CARD</div>
+          <div style="font-family:${FD};font-size:20px;font-weight:700;color:${C.text};letter-spacing:0.5px;">${user.name}</div>
+          <div style="font-family:${FB};font-size:11px;color:${C.textDim};margin-top:2px;font-weight:500;">${enrichedResult.sport} · ${user.region}</div>
+        </div>
+      </div>
+      <div style="position:relative;width:64px;height:64px;flex-shrink:0;">
+        <svg width="64" height="64" style="transform:rotate(-90deg);position:absolute;">
+          <circle cx="32" cy="32" r="${cardScoreR}" fill="none" stroke="rgba(255,90,31,0.15)" stroke-width="4"/>
+          <circle cx="32" cy="32" r="${cardScoreR}" fill="none" stroke="${C.orange}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${cardScoreCirc}" stroke-dashoffset="${cardScoreOffset}" style="transition:stroke-dashoffset 0.05s linear;filter:drop-shadow(0 0 6px ${C.orange});"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <span style="font-family:${FD};font-size:19px;font-weight:700;color:${C.text};line-height:1;">${resultsScore}</span>
+          <span style="font-family:${FB};font-size:7px;font-weight:800;color:${C.orange};letter-spacing:1px;">SCORE</span>
+        </div>
+      </div>
+    </div>
+    <div style="height:1px;background:rgba(255,255,255,0.05);margin:0 18px;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;padding:12px 0 4px;">
+      ${[{label:'LEVEL',val:enrichedResult.level||'Advanced'},{label:'DISTRICT RANK',val:`#${enrichedResult.districtRank||4}`},{label:'PERCENTILE',val:`TOP ${100-result.percentile}%`}].map((s,i)=>`<div style="text-align:center;border-right:${i<2?'1px solid rgba(255,255,255,0.06)':'none'};padding:4px 8px 8px;">
+        <div style="font-family:${FB};font-size:7.5px;font-weight:800;color:${C.textFaint};letter-spacing:1.2px;">${s.label}</div>
+        <div style="font-family:${FD};font-size:15px;font-weight:700;color:${C.orange};margin-top:3px;">${s.val}</div>
+      </div>`).join('')}
+    </div>
+    <div style="padding:6px 18px 16px;display:flex;flex-direction:column;gap:6px;">
+      ${result.radar.slice(0,4).map((m,i)=>`<div style="display:flex;align-items:center;gap:8px;">
+        <span style="width:54px;font-family:${FB};font-size:8.5px;color:${C.textFaint};font-weight:700;letter-spacing:0.5px;">${m.label.toUpperCase()}</span>
+        <div style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.05);overflow:hidden;"><div style="height:100%;width:${rv?m.value+'%':'0%'};background:linear-gradient(90deg,rgba(255,90,31,0.6),${C.orange});border-radius:2px;transition:width 0.9s cubic-bezier(0.16,1,0.3,1) ${0.5+i*0.08}s;"></div></div>
+        <span style="width:22px;text-align:right;font-family:${FD};font-size:11px;color:${C.text};font-weight:600;">${m.value}</span>
+      </div>`).join('')}
+    </div>
+    <div style="padding:8px 18px 12px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.04);">
+      <span style="font-family:${FB};font-size:8px;color:${C.textFaint};font-weight:600;">ASSESSED ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()}</span>
+      <div style="padding:3px 10px;border-radius:20px;background:rgba(255,90,31,0.12);border:1px solid rgba(255,90,31,0.25);"><span style="font-family:${FB};font-size:8px;font-weight:800;color:${C.orange};letter-spacing:1px;">VERIFIED ✦</span></div>
+    </div>
+  </div>`;
+
+  // ── AI Coach Insights ──
+  const districtAvg={Speed:80,Strength:75,Agility:79,Endurance:88,Balance:72};
+  const getVal=(label)=>result.radar.find(r=>r.label===label)?.value??null;
+  const insightMetrics=[
+    {label:'Speed',value:getVal('Speed'),iconName:'Zap',color:C.orange},
+    {label:'Strength',value:getVal('Strength'),iconName:'TrendingUp',color:'#00C9A7'},
+    {label:'Agility',value:getVal('Agility'),iconName:'Brain',color:C.blue},
+    {label:'Endurance',value:getVal('Endurance'),iconName:'Heart',color:'#FF6B6B'},
+    {label:'Balance',value:getVal('Balance'),iconName:'Minus',color:C.textDim},
+  ].filter(m=>m.value!==null);
+  const rate=v=>v>=85?'excellent':v>=70?'above-average':v>=55?'average':'needs-work';
+  const phraseFor=m=>{const tier=rate(m.value);
+    if(tier==='excellent')return`Excellent ${m.label.toLowerCase()} — ${m.value}/100, among the best in your group.`;
+    if(tier==='above-average')return`Above-average ${m.label.toLowerCase()} at ${m.value}/100. A little more focus could push this into elite range.`;
+    if(tier==='average')return`Solid ${m.label.toLowerCase()} at ${m.value}/100, right around the typical range.`;
+    return`${m.label} can be improved — currently ${m.value}/100. Targeted training here will move your overall score the most.`;
+  };
+  const sorted=[...insightMetrics].sort((a,b)=>b.value-a.value);
+  const strongest=sorted[0],weakest=sorted[sorted.length-1];
+  const middlePick=sorted.find(m=>m.label!==strongest?.label&&m.label!==weakest?.label)||sorted[1];
+  const seen=new Set();
+  const insights=[strongest,middlePick,weakest].filter(m=>{if(!m||seen.has(m.label))return false;seen.add(m.label);return true;});
+
+  const aiCoach=`<div style="width:100%;opacity:${rv?1:0};transform:${rv?'translateY(0)':'translateY(16px)'};transition:opacity 0.5s ease 0.3s,transform 0.5s ease 0.3s;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      ${icon('Brain',14,C.blue)}
+      <span style="font-family:${FB};font-size:11px;font-weight:800;color:${C.text};letter-spacing:0.5px;">AI COACH INSIGHTS</span>
+      <div style="margin-left:auto;padding:2px 8px;border-radius:20px;background:rgba(45,156,255,0.1);border:1px solid rgba(45,156,255,0.25);">
+        <span style="font-family:${FB};font-size:8px;font-weight:800;color:${C.blue};letter-spacing:1px;">AI POWERED</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${insights.map((ins,i)=>`<div style="display:flex;gap:12px;align-items:flex-start;padding:11px 13px;border-radius:12px;background:${C.graphite};border:1px solid ${C.line};opacity:${rv?1:0};transform:${rv?'translateX(0)':'translateX(-12px)'};transition:opacity 0.5s ease ${0.4+i*0.1}s,transform 0.5s ease ${0.4+i*0.1}s;">
+        <div style="width:30px;height:30px;border-radius:8px;flex-shrink:0;background:${ins.color}18;display:flex;align-items:center;justify-content:center;">${icon(ins.iconName,14,ins.color)}</div>
+        <span style="font-family:${FB};font-size:12px;color:${C.text};font-weight:500;line-height:1.5;">${phraseFor(ins)}</span>
+      </div>`).join('')}
+    </div>
+  </div>`;
+
+  // ── Performance Comparison ──
+  const comparisons=result.radar.map(m=>({label:m.label,you:m.value,avg:districtAvg[m.label]||75,diff:m.value-(districtAvg[m.label]||75)}));
+  const perfComp=`<div style="width:100%;opacity:${rv?1:0};transform:${rv?'translateY(0)':'translateY(16px)'};transition:opacity 0.5s ease 0.45s,transform 0.5s ease 0.45s;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">${icon('TrendingUp',14,C.orange)}<span style="font-family:${FB};font-size:11px;font-weight:800;color:${C.text};letter-spacing:0.5px;">VS DISTRICT AVERAGE</span></div>
+    <div style="border-radius:14px;overflow:hidden;border:1px solid ${C.line};background:${C.graphite};">
+      <div style="display:grid;grid-template-columns:1fr 60px 60px 56px;padding:8px 14px;border-bottom:1px solid ${C.line};background:rgba(255,255,255,0.02);">
+        ${['METRIC','YOU','AVG','DIFF'].map(h=>`<span style="font-family:${FB};font-size:8px;font-weight:800;color:${C.textFaint};letter-spacing:1px;text-align:${h==='METRIC'?'left':'center'};">${h}</span>`).join('')}
+      </div>
+      ${comparisons.map((c,i)=>{
+        const isPos=c.diff>=0;
+        const trendIconName=c.diff>0?'TrendingUp':c.diff<0?'TrendingDown':'Minus';
+        const trendColor=c.diff>0?'#00C9A7':c.diff<0?'#FF6B6B':C.textDim;
+        return`<div style="display:grid;grid-template-columns:1fr 60px 60px 56px;padding:10px 14px;align-items:center;border-bottom:${i<comparisons.length-1?`1px solid rgba(255,255,255,0.04)`:'none'};opacity:${rv?1:0};transition:opacity 0.4s ease ${0.55+i*0.07}s;">
+          <span style="font-family:${FB};font-size:12px;color:${C.text};font-weight:600;">${c.label}</span>
+          <span style="font-family:${FD};font-size:14px;color:${C.orange};font-weight:700;text-align:center;">${c.you}</span>
+          <span style="font-family:${FD};font-size:14px;color:${C.textDim};font-weight:600;text-align:center;">${c.avg}</span>
+          <div style="display:flex;align-items:center;justify-content:center;gap:3px;">${icon(trendIconName,11,trendColor)}<span style="font-family:${FB};font-size:11px;font-weight:800;color:${trendColor};">${isPos?'+':''}${c.diff}%</span></div>
+        </div>`;}).join('')}
+    </div>
+  </div>`;
+
+  // ── Share Buttons ──
+  const ss=state.shareState,ds=state.downloadState;
+  const shareButtons=`<div style="display:flex;flex-direction:column;gap:8px;width:100%;opacity:${rv?1:0};transform:${rv?'translateY(0)':'translateY(12px)'};transition:opacity 0.5s ease 0.6s,transform 0.5s ease 0.6s;">
+    <div style="display:flex;gap:10px;width:100%;">
+      <button id="btn-share" style="flex:1;height:50px;border-radius:12px;background:${ss==='done'?'rgba(0,201,167,0.12)':ss==='error'?'rgba(255,107,107,0.1)':C.graphite};border:1px solid ${ss==='done'?'#00C9A7':ss==='error'?'#FF6B6B':C.line};display:flex;align-items:center;justify-content:center;gap:8px;cursor:${ss==='sharing'?'default':'pointer'};opacity:${ss==='sharing'?0.7:1};transition:all 0.3s ease;">
+        ${ss==='done'?icon('Check',16,'#00C9A7'):ss==='error'?icon('AlertCircle',16,'#FF6B6B'):icon('Share2',16,C.textDim)}
+        <span style="font-family:${FB};font-size:13px;font-weight:700;color:${ss==='done'?'#00C9A7':ss==='error'?'#FF6B6B':C.textDim};">${ss==='sharing'?'Sharing…':ss==='done'?'Shared!':ss==='error'?'Failed':'Share Result'}</span>
+      </button>
+      <button id="btn-download" style="flex:1;height:50px;border-radius:12px;background:${ds==='error'?'rgba(255,107,107,0.1)':'rgba(255,90,31,0.08)'};border:1px solid ${ds==='error'?'#FF6B6B':'rgba(255,90,31,0.3)'};display:flex;align-items:center;justify-content:center;gap:8px;cursor:${ds==='working'?'default':'pointer'};opacity:${ds==='working'?0.7:1};transition:all 0.2s ease;">
+        ${ds==='done'?icon('Check',16,C.orange):ds==='error'?icon('AlertCircle',16,'#FF6B6B'):icon('Download',16,C.orange)}
+        <span style="font-family:${FB};font-size:13px;font-weight:700;color:${ds==='error'?'#FF6B6B':C.orange};">${ds==='working'?'Preparing…':ds==='done'?'Saved!':ds==='error'?'Failed':'Download Card'}</span>
+      </button>
+    </div>
+    ${state.shareError?`<div style="display:flex;align-items:flex-start;gap:6px;padding:8px 10px;border-radius:10px;background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.25);">${icon('AlertCircle',12,'#FF6B6B')}<span style="font-family:${FB};font-size:11px;color:#FF6B6B;line-height:1.4;">${state.shareError}</span></div>`:''}
+  </div>`;
+
+  // ── Radar Chart (Performance tab) ──
+  const rSize=232,rCenter=rSize/2,rRadius=rSize/2-34,angleStep=(Math.PI*2)/result.radar.length;
+  const rPoint=(val,i)=>{const a=-Math.PI/2+i*angleStep;const r2=(val/100)*rRadius;return[rCenter+r2*Math.cos(a),rCenter+r2*Math.sin(a)];};
+  const radarPoly=result.radar.map((d,i)=>rPoint(d.value*state.radarFrac,i).join(',')).join(' ');
+  const rings=[0.25,0.5,0.75,1];
+  const ringPolys=rings.map(r2=>{const pts=result.radar.map((_,j)=>rPoint(100*r2,j).join(',')).join(' ');return`<polygon points="${pts}" fill="none" stroke="${C.line}" stroke-width="1"/>`;}).join('');
+  const radarLines=result.radar.map((_,i)=>{const[x,y]=rPoint(100,i);return`<line x1="${rCenter}" y1="${rCenter}" x2="${x}" y2="${y}" stroke="${C.line}" stroke-width="1"/>`;}).join('');
+  const radarDots=result.radar.map((d,i)=>{const[x,y]=rPoint(d.value*state.radarFrac,i);return`<circle cx="${x}" cy="${y}" r="3.5" fill="${C.orange}" style="transition:all 1s cubic-bezier(0.16,1,0.3,1);"/>`;}).join('');
+  const radarLabels=result.radar.map((d,i)=>{const[x,y]=rPoint(118,i);return`<text x="${x}" y="${y}" fill="${C.textDim}" font-size="10" font-weight="700" font-family="${FB}" text-anchor="middle" dominant-baseline="middle">${d.label.toUpperCase()}</text>`;}).join('');
+  const radarSvg=`<svg width="${rSize}" height="${rSize}">${ringPolys}${radarLines}<polygon points="${radarPoly}" fill="rgba(255,90,31,0.18)" stroke="${C.orange}" stroke-width="2" style="transition:all 1s cubic-bezier(0.16,1,0.3,1);filter:drop-shadow(0 0 8px rgba(255,90,31,0.5));"/>${radarDots}${radarLabels}</svg>`;
+
+  const perfTab=`<div style="opacity:${rv?1:0};transform:${rv?'translateY(0)':'translateY(16px)'};transition:opacity 0.45s ease 0.1s,transform 0.45s ease 0.1s;display:flex;flex-direction:column;align-items:center;">
+    ${buildSmallGlowRing(140,result.overall,'OVERALL',10)}
+    <p style="font-family:${FB};font-size:12px;color:${C.textDim};margin:14px 0 4px;font-weight:600;">${result.sport} · ${result.testName}</p>
+    <div style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:${C.graphite};border:1px solid ${C.line};margin-bottom:20px;">
+      ${icon('Award',13,C.orange)}<span style="font-family:${FB};font-size:11px;color:${C.text};font-weight:700;">Better than ${result.percentile}% of athletes tested</span>
+    </div>
+    ${radarSvg}
+    <div style="width:100%;margin-top:24px;display:flex;flex-direction:column;gap:10px;">
+      ${result.radar.map((m,i)=>`<div style="display:flex;align-items:center;gap:12px;">
+        <span style="width:70px;font-family:${FB};font-size:11px;color:${C.textDim};font-weight:700;">${m.label.toUpperCase()}</span>
+        <div style="flex:1;height:6px;border-radius:3px;background:${C.graphite};overflow:hidden;"><div style="height:100%;width:${state.resultsBarsIn?m.value+'%':'0%'};background:linear-gradient(90deg,${C.orangeDim},${C.orange});border-radius:3px;transition:width 1s cubic-bezier(0.16,1,0.3,1) ${i*0.07}s;"></div></div>
+        <span style="width:26px;text-align:right;font-family:${FD};font-size:13px;color:${C.text};font-weight:600;">${m.value}</span>
+      </div>`).join('')}
+    </div>
+  </div>`;
+
+  return `<div style="height:100%;display:flex;flex-direction:column;background:${C.bg};">
+    ${buildTopBar('Your Results','btn-back-results')}
+    <div style="display:flex;padding:0 22px 14px;gap:8px;">
+      ${[['card','Talent Card'],['radar','Performance']].map(([id,label])=>`<button data-results-tab="${id}" style="flex:1;padding:8px 0;border-radius:10px;background:${resultsActiveTab===id?C.orange:C.graphite};border:1px solid ${resultsActiveTab===id?C.orange:C.line};font-family:${FB};font-size:12px;font-weight:700;color:${resultsActiveTab===id?'#0A0A0B':C.textDim};cursor:pointer;transition:all 0.2s ease;">${label}</button>`).join('')}
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:4px 22px 20px;display:flex;flex-direction:column;gap:20px;">
+      ${resultsActiveTab==='card'?talentCard+aiCoach+perfComp+shareButtons:perfTab}
+    </div>
+    <div style="padding:10px 22px 24px;">
+      <button id="btn-view-leaderboard" style="width:100%;padding:15px;border-radius:14px;background:${C.orange};border:none;font-family:${FD};font-size:14px;font-weight:600;color:#0A0A0B;letter-spacing:0.8px;cursor:pointer;box-shadow:0 8px 24px rgba(255,90,31,0.4);">VIEW LEADERBOARD</button>
+    </div>
+  </div>`;
+}
+
+// ── LEADERBOARD ──
+function buildLeaderboard(){
+  const{lbFilter,lbLeaders,lbLoading,lbError}=state;
+  const podium=lbLeaders.slice(0,3),rest=lbLeaders.slice(3);
+  const filters=LEADERBOARD_SPORTS.map(f=>`<button data-lb-filter="${f}" style="padding:7px 16px;border-radius:18px;border:1px solid ${lbFilter===f?C.orange:C.line};background:${lbFilter===f?'rgba(255,90,31,0.12)':'transparent'};font-family:${FB};font-size:12px;font-weight:600;color:${lbFilter===f?C.orange:C.textDim};cursor:pointer;flex-shrink:0;">${f}</button>`).join('');
+
+  let bodyHtml='';
+  if(lbLoading){
+    bodyHtml=`<div style="flex:1;display:flex;align-items:center;justify-content:center;"><div style="display:flex;flex-direction:column;align-items:center;gap:14px;"><span style="width:28px;height:28px;border-radius:50%;border:3px solid ${C.graphite};border-top-color:${C.orange};animation:th-spin 0.8s linear infinite;display:block;"></span><span style="font-family:${FB};font-size:12px;color:${C.textDim};font-weight:600;">Loading rankings…</span></div></div>`;
+  }else if(lbError){
+    bodyHtml=`<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:0 20px;"><div style="padding:14px;border-radius:12px;width:100%;background:rgba(255,77,77,0.08);border:1px solid rgba(255,77,77,0.3);display:flex;align-items:flex-start;gap:8px;">${icon('AlertCircle',15,'#FF6B6B')}<span style="font-family:${FB};font-size:12px;color:#FF6B6B;line-height:1.4;">Couldn't load rankings right now. Try again shortly.</span></div></div>`;
+  }else if(lbLeaders.length===0){
+    bodyHtml=`<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:0 20px;"><p style="font-family:${FB};font-size:13px;color:${C.textFaint};text-align:center;margin:0;">No assessments recorded yet for ${lbFilter==='All'?'any sport':lbFilter}.</p></div>`;
+  }else{
+    const podiumHtml=`<div style="display:flex;align-items:flex-end;justify-content:center;gap:10px;padding:4px 20px 22px;">
+      ${[podium[1],podium[0],podium[2]].filter(Boolean).map(l=>{
+        const isFirst=l.rank===1;
+        return`<div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div style="width:${isFirst?58:48}px;height:${isFirst?58:48}px;border-radius:50%;background:linear-gradient(135deg,${C.graphiteLight},${C.graphite});border:2px solid ${isFirst?C.orange:C.line};display:flex;align-items:center;justify-content:center;font-family:${FD};font-size:${isFirst?20:16}px;color:${C.text};font-weight:600;box-shadow:${isFirst?'0 0 18px rgba(255,90,31,0.4)':'none'};">${l.name.split(' ').map(n=>n[0]).join('')}</div>
+          <span style="font-family:${FB};font-size:11px;color:${C.text};font-weight:700;">${l.name.split(' ')[0]}</span>
+          <div style="width:28px;height:${isFirst?34:l.rank===2?24:16}px;border-radius:6px 6px 0 0;background:${isFirst?C.orange:C.graphite};display:flex;align-items:flex-start;justify-content:center;padding-top:4px;border:${isFirst?'none':`1px solid ${C.line}`};">
+            <span style="font-family:${FD};font-size:12px;color:${isFirst?'#0A0A0B':C.textDim};font-weight:700;">${l.rank}</span>
+          </div>
+        </div>`;}).join('')}
+    </div>`;
+    const restHtml=`<div style="flex:1;overflow-y:auto;padding:0 20px 24px;display:flex;flex-direction:column;gap:9px;">
+      ${rest.map(l=>`<div style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:14px;background:${l.isUser?'rgba(255,90,31,0.08)':C.graphite};border:1px solid ${l.isUser?C.orange:C.line};">
+        <span style="width:22px;font-family:${FD};font-size:15px;color:${l.isUser?C.orange:C.textDim};font-weight:600;">${l.rank}</span>
+        <div style="width:38px;height:38px;border-radius:50%;background:${C.graphiteLight};display:flex;align-items:center;justify-content:center;font-family:${FB};font-size:13px;color:${C.text};font-weight:700;flex-shrink:0;">${l.name.split(' ').map(n=>n[0]).join('')}</div>
+        <div style="flex:1;">
+          <p style="margin:0;font-family:${FB};font-size:13.5px;color:${C.text};font-weight:700;">${l.name}${l.isUser?` <span style="color:${C.orange};font-size:10px;">(YOU)</span>`:''}</p>
+          <p style="margin:2px 0 0;font-family:${FB};font-size:11px;color:${C.textFaint};display:flex;align-items:center;gap:3px;">${icon('MapPin',10,C.textFaint)} ${l.sport}</p>
+        </div>
+        <div style="text-align:right;">
+          <p style="margin:0;font-family:${FD};font-size:17px;color:${C.text};font-weight:600;">${l.score}</p>
+          <p style="margin:1px 0 0;font-family:${FB};font-size:8.5px;color:${C.textFaint};font-weight:700;letter-spacing:0.4px;">RATING</p>
+        </div>
+      </div>`).join('')}
+    </div>`;
+    bodyHtml=podiumHtml+restHtml;
+  }
+
+  return `<div style="height:100%;display:flex;flex-direction:column;background:${C.bg};">
+    ${buildTopBar('Rankings','btn-back-lb')}
+    <div class="filter-scroll">${filters}</div>
+    <p style="margin:0 20px;font-family:${FB};font-size:10.5px;color:${C.textFaint};font-weight:700;letter-spacing:0.6px;">OVERALL SCORE — ${lbFilter.toUpperCase()}</p>
+    ${bodyHtml}
+  </div>`;
+}
+
+// ── PROFILE ──
+function buildProfile(){
+  const u=getActiveUser();
+  const badges=[{label:'Speed Demon',iconName:'Zap'},{label:'Top 10%',iconName:'Trophy'},{label:'5-Test Streak',iconName:'Award'}];
+  const{profStats,profHistory,profLoading,profError}=state;
+  const initials=u.name.split(' ').map(n=>n[0]).join('');
+
+  let statsHtml='';
+  if(profLoading){
+    statsHtml=`<div style="padding:30px 0;display:flex;flex-direction:column;align-items:center;gap:14px;"><span style="width:28px;height:28px;border-radius:50%;border:3px solid ${C.graphite};border-top-color:${C.orange};animation:th-spin 0.8s linear infinite;display:block;"></span><span style="font-family:${FB};font-size:12px;color:${C.textDim};font-weight:600;">Loading your stats…</span></div>`;
+  }else if(profError){
+    statsHtml=`<div style="width:100%;padding:14px;border-radius:12px;margin-bottom:20px;background:rgba(255,77,77,0.08);border:1px solid rgba(255,77,77,0.3);display:flex;align-items:flex-start;gap:8px;">${icon('AlertCircle',15,'#FF6B6B')}<span style="font-family:${FB};font-size:12px;color:#FF6B6B;line-height:1.4;">Couldn't load your stats right now. Pull to refresh or try again later.</span></div>`;
+  }else if(profStats){
+    const historyHtml=profHistory.length===0?
+      `<p style="font-family:${FB};font-size:12.5px;color:${C.textFaint};margin:0;">No assessments yet — complete one to see it here.</p>`:
+      `<div style="display:flex;flex-direction:column;gap:8px;">${profHistory.map(r=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:12px;background:${C.graphite};border:1px solid ${C.line};">
+        <div><p style="margin:0;font-family:${FB};font-size:13px;color:${C.text};font-weight:700;">${r.sport}</p><p style="margin:2px 0 0;font-family:${FB};font-size:10.5px;color:${C.textFaint};">${r.date||'Just now'}</p></div>
+        <span style="font-family:${FD};font-size:17px;color:${C.orange};font-weight:600;">${r.overallScore}</span>
+      </div>`).join('')}</div>`;
+    statsHtml=`
+      <div style="display:flex;width:100%;gap:10px;margin-bottom:14px;">
+        <div style="flex:1;background:${C.graphite};border-radius:14px;padding:16px 0;text-align:center;border:1px solid ${C.line};"><p style="font-family:${FD};font-size:22px;color:${C.orange};margin:0;font-weight:600;">${profStats.highest}</p><p style="font-family:${FB};font-size:10px;color:${C.textFaint};margin:2px 0 0;font-weight:600;">HIGHEST</p></div>
+        <div style="flex:1;background:${C.graphite};border-radius:14px;padding:16px 0;text-align:center;border:1px solid ${C.line};"><p style="font-family:${FD};font-size:22px;color:${C.text};margin:0;font-weight:600;">${profStats.total}</p><p style="font-family:${FB};font-size:10px;color:${C.textFaint};margin:2px 0 0;font-weight:600;">TESTS</p></div>
+        <div style="flex:1;background:${C.graphite};border-radius:14px;padding:16px 0;text-align:center;border:1px solid ${C.line};"><p style="font-family:${FD};font-size:22px;color:${C.text};margin:0;font-weight:600;">${profStats.average}</p><p style="font-family:${FB};font-size:10px;color:${C.textFaint};margin:2px 0 0;font-weight:600;">AVERAGE</p></div>
+      </div>
+      <div style="width:100%;margin-bottom:20px;padding:12px 14px;border-radius:12px;background:${C.graphite};border:1px solid ${C.line};display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-family:${FB};font-size:12px;color:${C.textDim};font-weight:600;">Best Sport</span>
+        <span style="font-family:${FD};font-size:14px;color:${C.orange};font-weight:600;">${profStats.bestSport}</span>
+      </div>
+      <div style="width:100%;margin-bottom:20px;">
+        <p style="font-family:${FB};font-size:11px;color:${C.textFaint};font-weight:700;letter-spacing:0.5px;margin-bottom:10px;">RECENT ASSESSMENTS</p>
+        ${historyHtml}
+      </div>`;
+  }
+
+  return`<div style="height:100%;display:flex;flex-direction:column;background:${C.bg};">
+    ${buildTopBar('Profile','btn-back-profile')}
+    <div style="flex:1;overflow-y:auto;padding:0 22px 24px;display:flex;flex-direction:column;align-items:center;">
+      <div style="width:84px;height:84px;border-radius:50%;background:linear-gradient(135deg,${C.graphiteLight},${C.graphite});border:2px solid ${C.orange};display:flex;align-items:center;justify-content:center;font-family:${FD};font-size:30px;color:${C.text};font-weight:600;box-shadow:0 0 22px rgba(255,90,31,0.3);margin-bottom:14px;">${initials}</div>
+      <h2 style="font-family:${FD};font-size:20px;color:${C.text};font-weight:600;margin:0;">${u.name}</h2>
+      <div style="display:flex;gap:8px;margin:12px 0 18px;">
+  <button onclick="switchAthlete(1)" style="padding:8px 12px;border:none;border-radius:10px;background:${state.selectedAthlete===1?C.orange:C.graphite};color:white;cursor:pointer;">
+    Rohan Sharma
+  </button>
+
+  <button onclick="switchAthlete(2)" style="padding:8px 12px;border:none;border-radius:10px;background:${state.selectedAthlete===2?C.orange:C.graphite};color:white;cursor:pointer;">
+    Aryan Verma
+  </button>
+
+  <button onclick="switchAthlete(3)" style="padding:8px 12px;border:none;border-radius:10px;background:${state.selectedAthlete===3?C.orange:C.graphite};color:white;cursor:pointer;">
+    Viraj Singh
+  </button>
+</div>
+      <p style="font-family:${FB};font-size:12px;color:${C.textDim};margin:4px 0 18px;font-weight:600;">${u.sport} Athlete · ${u.region}</p>
+      ${statsHtml}
+      <div style="width:100%;">
+        <p style="font-family:${FB};font-size:11px;color:${C.textFaint};font-weight:700;letter-spacing:0.5px;margin-bottom:10px;">ACHIEVEMENTS</p>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${badges.map(b=>`<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:${C.graphite};border:1px solid ${C.line};">
+            <div style="width:34px;height:34px;border-radius:10px;background:rgba(255,90,31,0.12);display:flex;align-items:center;justify-content:center;">${icon(b.iconName,16,C.orange)}</div>
+            <span style="font-family:${FB};font-size:13px;color:${C.text};font-weight:600;">${b.label}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+      <button id="btn-signout" style="width:100%;margin-top:22px;padding:13px 0;border-radius:14px;background:transparent;border:1px solid ${C.line};display:flex;align-items:center;justify-content:center;gap:8px;font-family:${FB};font-size:13px;font-weight:700;color:${C.textDim};cursor:pointer;">
+        ${icon('LogOut',14,C.textDim)} Sign Out
+      </button>
+    </div>
+  </div>`;
+}
+
+// ── EVENTS ──
+function attachEvents(){
+  document.addEventListener('click',handleClick,{once:true});
+  setTimeout(()=>{
+    document.querySelectorAll('[data-sport]').forEach(card=>{
+      card.addEventListener('mouseenter',()=>{card.style.transform='scale(0.97)';});
+      card.addEventListener('mouseleave',()=>{card.style.transform='scale(1)';});
+    });
+    const demoBtn=document.getElementById('btn-try-demo');
+    if(demoBtn){
+      demoBtn.addEventListener('mouseenter',()=>{demoBtn.style.borderColor=C.orange;demoBtn.style.color=C.orange;});
+      demoBtn.addEventListener('mouseleave',()=>{demoBtn.style.borderColor=C.line;demoBtn.style.color=C.textDim;});
+    }
+  },50);
+}
+
+function handleClick(e){
+  const t=e.target.closest('[id],[data-tab],[data-sport],[data-lb-filter],[data-results-tab]');
+  if(!t){document.addEventListener('click',handleClick,{once:true});return;}
+  const id=t.id,tab=t.dataset.tab,sportId=t.dataset.sport,lbFilter=t.dataset.lbFilter,rtab=t.dataset.resultsTab;
+
+  if(tab){goTab(tab);return;}
+  if(sportId){selectSport(sportId);return;}
+  if(lbFilter){state.lbFilter=lbFilter;loadLeaderboard();return;}
+  if(rtab){state.resultsActiveTab=rtab;render();return;}
+
+  switch(id){
+    case'btn-back-sport':goScreen('home','home');break;
+    case 'btn-athlete-1':
+  switchAthlete(1);
+  break;
+
+case 'btn-athlete-2':
+  switchAthlete(2);
+  break;
+
+case 'btn-athlete-3':
+  switchAthlete(3);
+  break;
+    case'btn-back-assess':state.demoMode?exitDemo():goScreen('sport','assess');break;
+    case'btn-back-results':state.demoMode?exitDemo():goScreen('home','home');break;
+    case'btn-back-lb':goScreen('home','home');break;
+    case'btn-back-profile':goScreen('home','home');break;
+    case'btn-home-profile':goTab('profile');break;
+    case'btn-start-assessment':goTab('assess');break;
+    case'btn-try-demo':case'btn-demo-login':startDemo();break;
+    case'btn-exit-demo':exitDemo();break;
+    case'btn-assess-cta':handleAssessCta();break;
+    case'btn-view-leaderboard':goTab('leaderboard');break;
+    case'btn-share':handleShare();break;
+    case'btn-download':handleDownload();break;
+    case'btn-signout':goScreen('home','home');break;
+    case 'btn-signin':
+
+    state.user = {
+      name:'Rohan Sharma',
+      email:'rohan.demo@gmail.com',
+      sport:'Cricket',
+      region:'Mumbai'
+    };
+
+    state.screen='home';
+    state.activeTab='home';
+
+    render();
+
+break;
+  }
+  document.addEventListener('click',handleClick,{once:true});
+}
+
+function goTab(tab){
+  clearAssessTimers();
+  state.activeTab=tab;
+  if(tab==='assess')goScreen('sport','assess');
+  else goScreen(tab,tab);
+}
+
+function goScreen(screen,tab){
+  clearAssessTimers();
+  if(state.analysisInterval){clearInterval(state.analysisInterval);state.analysisInterval=null;}
+  state.screen=screen;
+  if(tab)state.activeTab=tab;
+
+  if(screen==='home'){
+    state.homeBarsIn=false;state.glowRingAnimated=0;state.glowRingSettled=false;
+    render();
+    setTimeout(()=>{state.homeBarsIn=true;animateGlowRing(getActiveUser().overall);render();},150);
+  }else if(screen==='assessment'||screen==='demo-assessment'){
+    state.assPhase='ready';state.elapsed=0;state.analyzePct=0;state.hr=null;state.spd=null;state.countVal=3;
+    render();
+    if(state.demoMode)setTimeout(()=>runCountdown(),800);
+  }else if(screen==='leaderboard'){
+    render();loadLeaderboard();
+  }else if(screen==='profile'){
+    render();loadProfile();
+  }else if(screen==='results'||screen==='demo-results'){
+    state.resultsRevealed=false;state.resultsBarsIn=false;state.resultsScore=0;state.resultsActiveTab='card';state.radarFrac=0;
+    render();
+    setTimeout(()=>{state.resultsRevealed=true;render();
+      setTimeout(()=>{state.resultsBarsIn=true;state.radarFrac=1;animateResultsScore();render();},350);
+    },80);
+  }else{render();}
+}
+
+function animateGlowRing(target){
+  let start=null;const duration=1400;
+  const step=ts=>{
+    if(!start)start=ts;
+    const pct=Math.min((ts-start)/duration,1);
+    state.glowRingAnimated=Math.round((1-Math.pow(1-pct,3))*target);
+    const sc=document.getElementById('screen-content');
+    if(sc){
+      const circles=sc.querySelectorAll('svg circle');
+      if(circles.length>=2){const r=(216-14)/2,c=2*Math.PI*r;circles[1].setAttribute('stroke-dashoffset',c-(state.glowRingAnimated/100)*c);}
+      const scoreEl=sc.querySelector('[data-score-num]');
+    }
+    if(pct<1)requestAnimationFrame(step);
+    else{state.glowRingSettled=true;}
+  };
+  requestAnimationFrame(step);
+}
+
+function animateResultsScore(){
+  const target=getActiveResult().overall;
+  let start=null;const duration=1200;
+  setTimeout(()=>{
+    const step=ts=>{
+      if(!start)start=ts;
+      const pct=Math.min((ts-start)/duration,1);
+      state.resultsScore=Math.round((1-Math.pow(1-pct,3))*target);
+      render();
+      if(pct<1)requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  },300);
+}
+
+function selectSport(sportId){
+  const s=SPORTS.find(x=>x.id===sportId);
+  if(s){state.selectedSport=s;goScreen('assessment','assess');}
+}
+
+function startDemo(){
+  state.demoMode=true;state.selectedSport=DEMO_SPORT;
+  state.assPhase='ready';state.elapsed=0;state.analyzePct=0;state.hr=null;state.spd=null;state.countVal=3;
+  state.activeTab='assess';state.screen='demo-assessment';
+  render();
+  setTimeout(()=>runCountdown(),800);
+}
+
+function exitDemo(){
+  clearAssessTimers();
+  if(state.analysisInterval){clearInterval(state.analysisInterval);state.analysisInterval=null;}
+  state.demoMode=false;state.selectedSport=null;state.screen='home';state.activeTab='home';
+  state.homeBarsIn=false;state.glowRingAnimated=0;state.glowRingSettled=false;
+  render();
+  setTimeout(()=>{state.homeBarsIn=true;animateGlowRing(state.user.overall);render();},150);
+}
+
+// ── ASSESSMENT LOGIC ──
+function clearAssessTimers(){
+  if(state.countRef){clearTimeout(state.countRef);state.countRef=null;}
+  if(state.recRef){clearInterval(state.recRef);state.recRef=null;}
+  if(state.analyzeRef){clearInterval(state.analyzeRef);state.analyzeRef=null;}
+}
+
+function runCountdown(){
+  let n=3;state.countVal=n;state.assPhase='countdown';render();
+  const tick=()=>{
+    if(n>0){n--;state.countVal=n;render();state.countRef=setTimeout(tick,900);}
+    else{state.countRef=setTimeout(startRecording,700);}
+  };
+  state.countRef=setTimeout(tick,900);
+}
+
+function startRecording(){
+  const TOTAL_REC=state.demoMode?6:15;
+  state.elapsed=0;state.assPhase='recording';render();
+  let e=0;
+  state.recRef=setInterval(()=>{
+    e++;state.elapsed=e;
+    state.hr=142+Math.round(Math.random()*14);
+    state.spd=+(6.5+Math.random()*2.5).toFixed(1);
+    render();
+    if(e>=TOTAL_REC){clearInterval(state.recRef);stopRecording();}
+  },1000);
+}
+
+function stopRecording(){
+  clearInterval(state.recRef);state.assPhase='analyzing';render();startAnalysis();
+}
+
+function startAnalysis(){
+  let pct=0;state.analyzePct=0;state.analyzeMsg=AS_MSGS[0];
+  state.analyzeRef=setInterval(()=>{
+    pct=Math.min(pct+(Math.random()*4+1.5),100);
+    const rounded=Math.round(pct);
+    state.analyzePct=rounded;
+    state.analyzeMsg=AS_MSGS[Math.min(Math.floor((rounded/100)*AS_MSGS.length),AS_MSGS.length-1)];
+    render();
+    if(pct>=100){clearInterval(state.analyzeRef);setTimeout(()=>{state.assPhase='done';render();},400);}
+  },180);
+}
+
+function handleAssessCta(){
+  const p=state.assPhase;
+  if(p==='ready')runCountdown();
+  else if(p==='recording')stopRecording();
+  else if(p==='done'){
+    clearAssessTimers();
+    state.screen=state.demoMode?'demo-analysis':'analysis';
+    state.analysisProgress=0;state.analysisStage=0;
+    render();startAnalysisScreen();
+  }
+}
+
+function startAnalysisScreen(){
+  state.analysisInterval=setInterval(()=>{
+    state.analysisProgress=Math.min(state.analysisProgress+1.4,100);
+    state.analysisStage=Math.min(3,Math.floor((state.analysisProgress/100)*4));
+    render();
+    if(state.analysisProgress>=100){
+      clearInterval(state.analysisInterval);state.analysisInterval=null;
+      setTimeout(()=>{goScreen(state.demoMode?'demo-results':'results','home');},500);
+    }
+  },40);
+}
+
+// ── LEADERBOARD DATA ──
+function loadLeaderboard(){
+  state.lbLoading=true;state.lbError=null;render();
+  setTimeout(()=>{
+    let mockData=[];
+
+if(state.lbFilter==='Cricket'){
+
+  mockData=[
+    {rank:1,name:'Rohan Sharma',sport:'Cricket',score:87,isUser:false},
+    {rank:2,name:'Vikram Nair',sport:'Cricket',score:83,isUser:false},
+    {rank:3,name:'Mohit Jain',sport:'Cricket',score:77,isUser:false}
+  ];
+
+}
+
+else if(state.lbFilter==='Football'){
+
+  mockData=[
+    {rank:1,name:'Aryan Verma',sport:'Football',score:81,isUser:false},
+    {rank:2,name:'Rahul Kumar',sport:'Football',score:78,isUser:false},
+    {rank:3,name:'Sneha Patel',sport:'Football',score:72,isUser:false}
+  ];
+
+}
+
+else if(state.lbFilter==='Athletics'){
+
+  mockData=[
+    {rank:1,name:'Viraj Singh',sport:'Athletics',score:92,isUser:false},
+    {rank:2,name:'Priya Sharma',sport:'Athletics',score:88,isUser:false},
+    {rank:3,name:'Anita Desai',sport:'Athletics',score:82,isUser:false}
+  ];
+
+}
+
+else{
+
+  mockData=[
+    {rank:1,name:'Rohan Sharma',sport:'Cricket',score:87,isUser:false},
+    {rank:2,name:'Aryan Verma',sport:'Football',score:81,isUser:false},
+    {rank:3,name:'Viraj Singh',sport:'Athletics',score:79,isUser:false}
+  ];
+
+}
+    state.lbLeaders=mockData;state.lbLoading=false;render();
+  },800);
+}
+
+// ── PROFILE DATA ──
+function loadProfile(){
+
+  state.profLoading=true;
+  state.profError=null;
+  render();
+
+  setTimeout(()=>{
+
+    if(state.selectedAthlete===1){
+
+      state.profStats={
+        total:3,
+        highest:87,
+        average:82,
+        bestSport:'Cricket'
+      };
+
+      state.profHistory=[
+        {sport:'Cricket',date:'15 Jun 2025',overallScore:87},
+        {sport:'Athletics',date:'02 Jun 2025',overallScore:82},
+        {sport:'Football',date:'20 May 2025',overallScore:78},
+      ];
+
+    }
+
+    else if(state.selectedAthlete===2){
+
+      state.profStats={
+        total:4,
+        highest:81,
+        average:76,
+        bestSport:'Football'
+      };
+
+      state.profHistory=[
+        {sport:'Football',date:'18 Jun 2025',overallScore:81},
+        {sport:'Cricket',date:'08 Jun 2025',overallScore:75},
+        {sport:'Athletics',date:'25 May 2025',overallScore:72},
+      ];
+
+    }
+
+    else if(state.selectedAthlete===3){
+
+      state.profStats={
+        total:5,
+        highest:92,
+        average:85,
+        bestSport:'Athletics'
+      };
+
+      state.profHistory=[
+        {sport:'Athletics',date:'20 Jun 2025',overallScore:92},
+        {sport:'Football',date:'10 Jun 2025',overallScore:86},
+        {sport:'Cricket',date:'30 May 2025',overallScore:84},
+      ];
+
+    }
+
+    state.profLoading=false;
+    render();
+
+  },800);
+}
+
+// ── SHARE / DOWNLOAD ──
+async function handleShare(){
+  const result=getActiveResult();
+  state.shareState='sharing';state.shareError=null;render();
+  const text=`🏆 I scored ${result.overall}/100 on Talent Hunt AI Assessment!\nMy athletic potential has been analyzed. Join me on Talent Hunt!\n#TalentHunt #AthletePotential`;
+  try{
+    if(navigator.share){await navigator.share({title:'My Talent Hunt Score',text});state.shareState='done';}
+    else if(navigator.clipboard){await navigator.clipboard.writeText(text);state.shareState='done';state.shareError="Sharing isn't supported on this device — copied the result text instead.";}
+    else throw new Error('No share method');
+    setTimeout(()=>{state.shareState='idle';state.shareError=null;render();},3000);
+  }catch(err){
+    if(err?.name==='AbortError'){state.shareState='idle';render();return;}
+    state.shareState='error';state.shareError="Couldn't share right now. Please try again or take a screenshot instead.";
+    setTimeout(()=>{state.shareState='idle';state.shareError=null;render();},3500);
+  }
+  render();
+}
+
+async function handleDownload(){
+  state.downloadState='working';state.shareError=null;render();
+  try{
+    const card=document.getElementById('talent-card');
+    if(!card)throw new Error('Card not ready');
+    const canvas=await html2canvas(card,{backgroundColor:'#0F1117',scale:2,useCORS:true});
+    const url=canvas.toDataURL('image/png');
+    const a=document.createElement('a');a.href=url;
+    const uName=(state.demoMode?DEMO_ATHLETE.name:state.user.name).replace(/\s+/g,'-').toLowerCase();
+    a.download=`talent-card-${uName}.png`;a.click();
+    state.downloadState='done';
+    setTimeout(()=>{state.downloadState='idle';render();},2500);
+  }catch(err){
+    state.downloadState='error';state.shareError="Couldn't generate the card image. Please try again.";
+    setTimeout(()=>{state.downloadState='idle';state.shareError=null;render();},3500);
+  }
+  render();
+}
+
+// ── BOOT ──
+function boot(){
+  render();
+  setTimeout(()=>{state.splashPhase=1;render();},200);
+  setTimeout(()=>{state.splashPhase=2;render();},1500);
+  setTimeout(()=>{state.screen='login';render();},3000);
+}
+
+boot();
+</script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDKpseWUDT_QZaekMumLq1PKU9IbqIF-2g",
+  authDomain: "day-8-8d907.firebaseapp.com",
+  projectId: "day-8-8d907",
+  storageBucket: "day-8-8d907.firebasestorage.app",
+  messagingSenderId: "900996932828",
+  appId: "1:900996932828:web:4a89fd22b8ccea0180c019",
+  measurementId: "G-SZDR9ME4VF"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+window.auth = auth;
+window.db = db;
+window.GoogleAuthProvider = GoogleAuthProvider;
+
+function switchAthlete(id){
+
+  state.selectedAthlete=id;
+
+  if(id===1){
+    state.user.name='Rohan Sharma';
+    state.user.sport='Cricket';
+    state.user.region='Mumbai';
+
+    state.profStats={total:3,highest:87,average:82,bestSport:'Cricket'};
+  }
+
+  if(id===2){
+    state.user.name='Aryan Verma';
+    state.user.sport='Football';
+    state.user.region='Delhi';
+
+    state.profStats={total:3,highest:81,average:76,bestSport:'Football'};
+  }
+
+  if(id===3){
+    state.user.name='Viraj Singh';
+    state.user.sport='Athletics';
+    state.user.region='Bangalore';
+
+    state.profStats={total:3,highest:92,average:85,bestSport:'Athletics'};
+  }
+
+  render();
+  loadProfile();
+}
+window.switchAthlete = switchAthlete;
+</script>
+</body>
+</html>
